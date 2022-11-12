@@ -62,8 +62,8 @@ func main() {
 			*/
 			continue
 		}
-		log.Infof("[merge] merge commit %v %v", parent, commitID)
-		c := exec.Command("git", "merge-tree", "--write-tree", parent, commitID)
+		log.Infof("[merge] merge commit %v %v", upstream, commitID)
+		c := exec.Command("git", "merge-tree", "--write-tree", upstream, commitID)
 		c.Env = os.Environ()
 
 		out, err := c.CombinedOutput()
