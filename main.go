@@ -43,6 +43,26 @@ func main() {
 		}
 		// range each commitID and merge
 		commit := getCommit(commitID)
+		if len(commit.parentIDs) > 1 {
+			// this is commit commit
+			/*
+				-r, --rebase-merges[=(rebase-cousins|no-rebase-cousins)]
+				By default, a rebase will simply drop merge commits from the todo list, and put the rebased commits into a single, linear branch. With --rebase-merges, the rebase will
+				instead try to preserve the branching structure within the commits that are to be rebased, by recreating the merge commits. Any resolved merge conflicts or manual amendments
+				in these merge commits will have to be resolved/re-applied manually.
+
+				By default, or when no-rebase-cousins was specified, commits which do not have <upstream> as direct ancestor will keep their original branch point, i.e. commits that would be
+				excluded by git-log(1)'s --ancestry-path option will keep their original ancestry by default. If the rebase-cousins mode is turned on, such commits are instead rebased onto
+				<upstream> (or <onto>, if specified).
+
+				It is currently only possible to recreate the merge commits using the ort merge strategy; different merge strategies can be used only via explicit exec git merge -s
+				<strategy> [...] commands.
+
+				See also REBASING MERGES and INCOMPATIBLE OPTIONS below.
+			*/
+			continue
+		}
+		log.Infof("[merge] merge commit %v %v", parent, commitID)
 		c := exec.Command("git", "merge-tree", "--write-tree", parent, commitID)
 		c.Env = os.Environ()
 
@@ -71,11 +91,13 @@ func main() {
 		}
 		// use current merge result for next parent
 		parent = strings.Trim(string(out), "\n")
+		log.Infof("[merge] merge result %v", parent)
 	}
 	fmt.Fprint(os.Stdout, parent)
 }
 
 type GitCommit struct {
+	parentIDs      []string
 	author         string
 	authorEmail    string
 	authorDate     string
@@ -85,20 +107,21 @@ type GitCommit struct {
 }
 
 func getCommit(commitID string) *GitCommit {
-	c := exec.Command("git", "show", "--pretty=format:%an%n%ae%n%ai%n%cn%n%ce%n%B", "-s", commitID)
+	c := exec.Command("git", "show", "--pretty=format:%P%n%an%n%ae%n%ai%n%cn%n%ce%n%B", "-s", commitID)
 	c.Env = os.Environ()
 
 	out, err := c.CombinedOutput()
 	if err != nil {
 		log.Fatalf("git show failed: %v %v", string(out), err)
 	}
-	outs := strings.SplitN(string(out), "\n", 6)
+	outs := strings.SplitN(string(out), "\n", 7)
 	return &GitCommit{
-		author:         outs[0],
-		authorEmail:    outs[1],
-		authorDate:     outs[2],
-		committer:      outs[3],
-		committerEmail: outs[4],
-		body:           outs[5],
+		parentIDs:      strings.Split(outs[0], " "),
+		author:         outs[1],
+		authorEmail:    outs[2],
+		authorDate:     outs[3],
+		committer:      outs[4],
+		committerEmail: outs[5],
+		body:           outs[6],
 	}
 }
