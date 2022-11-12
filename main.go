@@ -18,6 +18,7 @@ func main() {
 	upstream := args[1]
 	branch := args[2]
 
+	// get commits to rebase by git rev-list
 	c := exec.Command("git", "rev-list", fmt.Sprintf("%s..%s", upstream, branch))
 	c.Env = os.Environ()
 
@@ -49,8 +50,12 @@ func main() {
 		if err != nil {
 			log.Fatalf("git merge-tree failed: %v %v", string(out), err)
 		}
+
+		// get tree id from the result of merge-tree
 		treeID := strings.Trim(string(out), "\n")
+
 		c = exec.Command("git", "commit-tree", treeID, "-p", parent, "-m", commit.body)
+		// use original author and committer
 		c.Env = append(
 			os.Environ(),
 			fmt.Sprintf("GIT_AUTHOR_NAME=%s", commit.author),
@@ -64,6 +69,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("git commit-tree failed: %v %v", string(out), err)
 		}
+		// use current merge result for next parent
 		parent = strings.Trim(string(out), "\n")
 	}
 	fmt.Fprint(os.Stdout, parent)
